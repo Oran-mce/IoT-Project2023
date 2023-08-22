@@ -1,0 +1,71 @@
+//11.08.2023
+
+//The Libraries that are needed for the Step Motor and the Remote Control
+#include "Stepper.h"
+#include "IRremote.h"
+#include "LiquidCrystal.h"
+#include "LedControl.h"
+
+#define STEPS  60   // Number of steps per revolution of Internal shaft
+int  Steps2Take;  // 2048 = 1 Revolution
+int receiver = 12; // Signal Pin of IR receiver to Arduino Digital Pin 12
+
+//Declaring Components
+Stepper small_stepper(STEPS, 8, 10 ,9 ,11 ); //Pins for Stepper Motor Driver Module
+IRrecv irrecv(receiver);    // create instance of 'irrecv'
+LiquidCrystal lcd(41, 43, 45, 47, 49, 51); //Pins for the LCD display
+uint32_t last_decodedRawData = 0; //Stores the Decoded Raw Data
+LedControl lc= LedControl(2, 3, 4);
+bool isBoxLocked = true;
+void setup() //Start of the Void Setup
+{
+  irrecv.enableIRIn(); //Activates the IR Receiver Module
+  lcd.begin(16, 2); //Setting the Dimensions for the LCD
+  lcd.print("Lockbox Closed");
+  lc.shutdown(0, false);
+  lc.setIntensity(0, 8);
+  lc.clearDisplay(0);
+}
+
+void loop() //Start of the Void loop
+{
+  if (irrecv.decode()) // This checks if an IR signal is received or not
+  {
+    // Check if it is a repeat IR code
+    if (irrecv.decodedIRData.flags)
+    {
+      //set the current decodedRawData to the last decodedRawData
+      irrecv.decodedIRData.decodedRawData = last_decodedRawData;
+    }
+    switch (irrecv.decodedIRData.decodedRawData)
+    {
+
+      case 0xB946FF00: //To Detect if VOL+ has been pressed
+        small_stepper.setSpeed(450); //Speed of Rotation
+        Steps2Take  =  -1020;  // Rotate Clock-Wise by 180 degrees
+        small_stepper.step(Steps2Take);
+        delay(1500); //Wait 1.5 seconds before next input is detected
+        lcd.clear(); //Clears the LCD Display
+        lcd.print("Lockbox Open"); //Displays the message "Lockbox Open"
+        break;
+
+      case 0xEA15FF00: //To Detect if VOL- has been pressed
+        small_stepper.setSpeed(450); //Speed of Rotation
+        Steps2Take  =  1020;  // Rotate Counter Clock-Wise by 180 degrees
+        small_stepper.step(Steps2Take);
+        delay(1500); //Wait 1.5 seconds before next input is detected
+        lcd.clear(); // Clears LCD 
+        lcd.print("Lockbox Closed");
+        break;
+
+    }
+    //store the last decodedRawData
+    last_decodedRawData = irrecv.decodedIRData.decodedRawData;
+    irrecv.resume(); // receive the next value
+    digitalWrite(2, LOW);
+    digitalWrite(3, LOW);
+    digitalWrite(4, LOW);
+    digitalWrite(5, LOW);
+  }
+
+}/* --end main loop -- */
